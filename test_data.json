@@ -1,0 +1,14 @@
+{
+  "valid_login": {
+    "email": "georgeheorhii",
+    "password": "ELsXh-vBHxZ58YW"
+  },
+  "invalid_login": {
+    "email": "george@example.com",
+    "password": "wrong_password"
+  },
+  "empty_login": {
+    "email": "",
+    "password": ""
+  }
+}
