@@ -1,60 +1,110 @@
 import pytest
-from utils import load_test_data
-
-test_data = load_test_data()
 from pages.modals import LoginModal, VerificationModal
+from pages.home_page import HomePage
 
 
-def test_login_with_invalid_password(page):
-    page.goto("https://shuffle.com/", wait_until="domcontentloaded", timeout=60000)
-    page.get_by_role("button", name="Login").click()
+# TC_7/1
+def test_login_with_invalid_data_throttling(page, test_data):
+    home = HomePage(page)
+    home.goto()
+    home.click_by_role("button", "Login")
+
     login_modal = LoginModal(page)
     email = test_data["invalid_login"]["email"]
     password = test_data["invalid_login"]["password"]
+
+    for i in range(10):
+        login_modal.email_input.fill(email)
+        login_modal.password_input.fill(password)
+        login_modal.login_button.click()
+        page.wait_for_timeout(500)
+
+    assert home.is_hidden("text=Please enter the code from your authenticator app.")
+
+
+# TC_7/2
+def test_login_with_invalid_password(page, test_data):
+    home = HomePage(page)
+    home.goto()
+    home.click_by_role("button", "Login")
+
+    login_modal = LoginModal(page)
+    email = test_data["invalid_login"]["email"]
+    password = test_data["invalid_login"]["password"]
+
     login_modal.email_input.fill(email)
     login_modal.password_input.fill(password)
     login_modal.login_button.click()
-    assert page.get_by_role("button", name="Verify").is_hidden()
+
+    assert home.is_hidden("text=Please enter the code from your authenticator app.")
 
 
-def test_login_process_negative(page):
-    page.goto("https://shuffle.com/", wait_until="domcontentloaded", timeout=60000)
-    login_button = page.get_by_role("button", name="Login")
-    login_button.click()
-    page.get_by_placeholder("Enter Email or Username").wait_for()
+# passed TC_1
+def test_login_process_positive_without_2fa(page, test_data):
+    home = HomePage(page)
+    home.goto()
+    home.click_by_role("button", "Login")
+
     login_modal = LoginModal(page)
     email = test_data["valid_login"]["email"]
     password = test_data["valid_login"]["password"]
+
     login_modal.email_input.fill(email)
     login_modal.password_input.fill(password)
-    verification_modal = VerificationModal(page)
     login_modal.login_button.click()
-    input("🔐 Please enter the 2FA code in the browser, then press Enter to continue...")
-    verification_modal.verify_button.click()
-    print("✅ Login test completed successfully.")
-    page.context.close()
+
+    page.wait_for_timeout(2000)
+
+    assert home.get_by_role("text", "Wallet").is_visible()
 
 
-def test_login_button_disabled_until_fields_filled(page):
-    page.goto("https://shuffle.com/", wait_until="domcontentloaded", timeout=60000)
-    login_button = page.get_by_role("button", name="Login")
-    login_button.click()
+# TC_8
+def test_login_button_disabled_until_fields_filled(page, test_data):
+    home = HomePage(page)
+    home.goto()
+    home.click_by_role("button", "Login")
+
     login_modal = LoginModal(page)
 
-    assert not login_modal.login_button.is_enabled()
+    # Nothing filled
+    class_attr = login_modal.login_button.get_attribute("class")
+    assert "opacity-50" in class_attr
 
     email = test_data["invalid_login"]["email"]
     password = test_data["valid_login"]["password"]
 
-    # First: only password filled
+    # Only password filled
     login_modal.email_input.fill("")
     login_modal.password_input.fill(password)
-    assert not login_modal.login_button.is_enabled()
+    class_attr = login_modal.login_button.get_attribute("class")
+    assert "opacity-50" in class_attr
 
-    # Second: only email filled
+    # Only email filled
     login_modal.email_input.fill(email)
     login_modal.password_input.fill("")
-    assert not login_modal.login_button.is_enabled()
+    class_attr = login_modal.login_button.get_attribute("class")
+    assert "opacity-50" in class_attr
 
-    print("Login test (negative) is completed successfully.")
-    page.context.close()
+
+# TC_19
+def test_login_and_logout_case(page, test_data):
+    home = HomePage(page)
+    home.goto()
+    home.click_by_role("button", "Login")
+
+    login_modal = LoginModal(page)
+    email = test_data["valid_login"]["email"]
+    password = test_data["valid_login"]["password"]
+
+    login_modal.email_input.fill(email)
+    login_modal.password_input.fill(password)
+    login_modal.login_button.click()
+
+    page.wait_for_timeout(2000)
+
+    assert home.get_by_text("Wallet").is_visible()
+
+    home.button_profile.click()
+    home.button_logout.click()
+
+    assert home.get_by_text("Sign up").is_visible()
